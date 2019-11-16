@@ -1,0 +1,7 @@
+{
+	"mongoURI": "mongodb+srv://bilal:123@project-tdlvu.mongodb.net/test?retryWrites=true&w=majority",
+
+	"jwtSecret": "secrettoken",
+	"githubClientId": "49ccffa471fc7cc1e1b0",
+	"githubSecret": "ba85bd6b144f96865292629952d0486d0a793e6b"
+}
