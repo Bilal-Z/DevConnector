@@ -12,13 +12,38 @@ ProjectSchema = new Schema({
 				type: Schema.Types.ObjectId,
 				ref: 'user'
 			},
-			Role: {
+			role: {
 				type: String,
 				required: true
 			},
 			vacancy: {
 				type: Boolean,
 				default: true
+			}
+		}
+	],
+	title: {
+		type: String,
+		required: true
+	},
+	discription: {
+		type: String,
+		required: true
+	},
+	status: {
+		type: String,
+		default: 'HIRING'
+	},
+	// applicants for a job role
+	applicants: [
+		{
+			dev: {
+				type: Schema.Types.ObjectId,
+				ref: 'user'
+			},
+			role: {
+				type: String,
+				required: true
 			}
 		}
 	],
@@ -49,7 +74,7 @@ ProjectSchema = new Schema({
 		{
 			user: {
 				type: Schema.Types.ObjectId,
-				ref: 'users'
+				ref: 'user'
 			},
 			text: {
 				type: String,
@@ -65,7 +90,7 @@ ProjectSchema = new Schema({
 				{
 					user: {
 						type: Schema.Types.ObjectId,
-						ref: 'users'
+						ref: 'user'
 					}
 				}
 			],
@@ -73,7 +98,7 @@ ProjectSchema = new Schema({
 				{
 					user: {
 						type: Schema.Types.ObjectId,
-						ref: 'users'
+						ref: 'user'
 					},
 					text: {
 						type: String,

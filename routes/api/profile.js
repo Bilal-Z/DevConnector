@@ -51,7 +51,6 @@ router.post(
 		}
 
 		const {
-			company,
 			website,
 			location,
 			bio,
@@ -68,7 +67,6 @@ router.post(
 		// build profile object
 		const profileFeilds = {};
 		profileFeilds.user = req.user.id;
-		if (company) profileFeilds.company = company;
 		if (website) profileFeilds.website = website;
 		if (location) profileFeilds.location = location;
 		if (bio) profileFeilds.bio = bio;

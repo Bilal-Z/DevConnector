@@ -5,19 +5,35 @@ const ProfileSchema = new mongoose.Schema({
 		type: mongoose.Schema.Types.ObjectId,
 		ref: 'user'
 	},
-	company: {
-		type: String
-	},
 	website: {
 		type: String
 	},
 	location: {
 		type: String
 	},
+	// employment status
 	status: {
 		type: String,
-		required: true
+		default: 'UNEMPLOYED'
 	},
+	offers: [
+		{
+			proj: {
+				type: Schema.Types.ObjectId,
+				ref: 'project'
+			},
+			role: {
+				type: String,
+				required: true
+			}
+		}
+	],
+	// currently enrolled job
+	currentJob: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'project'
+	},
+	// list of skills
 	skills: {
 		type: [String],
 		required: true
@@ -28,29 +44,20 @@ const ProfileSchema = new mongoose.Schema({
 	githubusername: {
 		type: String
 	},
-	experience: [
+	// list of all projects participated in
+	projects: [
 		{
+			id: {
+				type: mongoose.Schema.Types.ObjectId,
+				ref: 'project'
+			},
 			title: {
 				type: String,
 				required: true
 			},
-			company: {
+			role: {
 				type: String,
 				required: true
-			},
-			location: {
-				type: String
-			},
-			from: {
-				type: Date,
-				required: true
-			},
-			to: {
-				type: Date
-			},
-			current: {
-				type: Boolean,
-				default: false
 			},
 			description: {
 				type: String
