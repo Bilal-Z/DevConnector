@@ -36,9 +36,6 @@ router.post(
 	[
 		auth,
 		[
-			check('status', 'status is required ')
-				.not()
-				.isEmpty(),
 			check('skills', 'Skills is required')
 				.not()
 				.isEmpty()

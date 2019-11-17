@@ -8,6 +8,7 @@ ProjectSchema = new Schema({
 	},
 	members: [
 		{
+			_id: false,
 			dev: {
 				type: Schema.Types.ObjectId,
 				ref: 'user'
@@ -26,7 +27,7 @@ ProjectSchema = new Schema({
 		type: String,
 		required: true
 	},
-	discription: {
+	description: {
 		type: String,
 		required: true
 	},
@@ -75,6 +76,10 @@ ProjectSchema = new Schema({
 			user: {
 				type: Schema.Types.ObjectId,
 				ref: 'user'
+			},
+			title: {
+				type: String,
+				required: true
 			},
 			text: {
 				type: String,

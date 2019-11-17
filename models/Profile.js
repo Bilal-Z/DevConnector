@@ -11,15 +11,11 @@ const ProfileSchema = new mongoose.Schema({
 	location: {
 		type: String
 	},
-	// employment status
-	status: {
-		type: String,
-		default: 'UNEMPLOYED'
-	},
+	// offers from project
 	offers: [
 		{
 			proj: {
-				type: Schema.Types.ObjectId,
+				type: mongoose.Schema.Types.ObjectId,
 				ref: 'project'
 			},
 			role: {
