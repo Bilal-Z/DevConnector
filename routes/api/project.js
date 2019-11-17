@@ -58,10 +58,14 @@ router.post(
 			}
 
 			project = await newProj.save();
-			await Profile.findOneAndUpdate(
-				{ user: req.user.id },
-				{ currentJob: project.id }
-			);
+			const profile = await Profile.findOne({ user: req.user.id });
+			profile.currentJob = project.id;
+			profile.projects.unshift({
+				id: project.id,
+				title: project.title,
+				role: 'LEADER'
+			});
+			profile.save();
 			res.json(project);
 		} catch (err) {
 			console.error(err.message);

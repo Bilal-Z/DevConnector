@@ -54,9 +54,6 @@ const ProfileSchema = new mongoose.Schema({
 			role: {
 				type: String,
 				required: true
-			},
-			description: {
-				type: String
 			}
 		}
 	],
