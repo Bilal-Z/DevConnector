@@ -38,6 +38,7 @@ ProjectSchema = new Schema({
 	// applicants for a job role
 	applicants: [
 		{
+			_id: false,
 			dev: {
 				type: Schema.Types.ObjectId,
 				ref: 'user'
@@ -85,12 +86,6 @@ ProjectSchema = new Schema({
 				type: String,
 				required: true
 			},
-			name: {
-				type: String
-			},
-			avatar: {
-				type: String
-			},
 			likes: [
 				{
 					user: {
@@ -108,12 +103,6 @@ ProjectSchema = new Schema({
 					text: {
 						type: String,
 						required: true
-					},
-					name: {
-						type: String
-					},
-					avatar: {
-						type: String
 					},
 					date: {
 						type: Date,
