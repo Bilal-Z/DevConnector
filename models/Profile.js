@@ -14,6 +14,7 @@ const ProfileSchema = new mongoose.Schema({
 	// offers from project
 	offers: [
 		{
+			_id: false,
 			proj: {
 				type: mongoose.Schema.Types.ObjectId,
 				ref: 'project'
