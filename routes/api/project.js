@@ -75,6 +75,32 @@ router.post(
   }
 );
 
+// @route PUT api/project/members
+// @desc add a new member position
+// @acces Private
+router.put(
+  "/members",
+  [
+    auth,
+    [
+      check("role", "role is required")
+        .not()
+        .isEmpty()
+    ]
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    try {
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send("Server Error");
+    }
+  }
+);
+
 // @route PUT api/project/:proj_id/apply
 // @desc apply to project
 // @acces Private
@@ -198,6 +224,8 @@ router.put("/applications/:user_id/accept", auth, async (req, res) => {
 
     if (!project.members.some(mem => mem.vacancy === true)) {
       project.status = "FULL";
+      project.offered.length = 0;
+      project.applicants.length = 0;
     }
 
     // set current job of employee, delete offers and applications, add to project list
@@ -210,6 +238,7 @@ router.put("/applications/:user_id/accept", auth, async (req, res) => {
       role: applicant.role
     });
     await project.save();
+    // throw new Error("check transaction");
     await profile.save();
     await session.commitTransaction();
     res.json(project);
