@@ -415,8 +415,18 @@ router.put(
 					.json({ msg: 'you have already offered this developer a job' });
 			}
 
-			profile.offers.push({ proj: project.id, role: req.body.role });
-			project.offered.push({ dev: req.params.user_id, role: req.body.role });
+			profile.offers.push({
+				proj: project.id,
+				role: req.body.role,
+				title: project.title
+			});
+			const user = User.findById(req.params.user_id).select('-password');
+			project.offered.push({
+				dev: req.params.user_id,
+				role: req.body.role,
+				name: user.name,
+				avatar: user.avatar
+			});
 			await project.save();
 			await profile.save();
 			res.json(project);
@@ -472,7 +482,10 @@ router.put('/offers/:proj_id/accept', auth, async (req, res) => {
 			off => off.dev.toString() === req.user.id.toString()
 		);
 
+		const user = User.findById(req.user.id).select('-password');
 		project.members[memIndex].dev = req.user.id;
+		project.members[memIndex].name = user.name;
+		project.members[memIndex].avatar = user.avatar;
 		project.members[memIndex].vacancy = false;
 		project.offered.splice(offerIndex, 1);
 

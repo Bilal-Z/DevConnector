@@ -39,7 +39,10 @@ router.post(
 			role: role.trim()
 		}));
 
+		const user = User.findById(req.user.id).select('-password');
 		const newProj = new Project({
+			ownerName: user.name,
+			ownerAvatar: user.avatar,
 			owner: req.user.id,
 			title: req.body.title,
 			description: req.body.description,
@@ -135,9 +138,12 @@ router.put(
 				return res.status(400).json({ msg: 'project does not exist' });
 			}
 
+			const user = User.findById(req.user.id).select('-password');
 			const newApplicant = {
 				role: req.body.role,
-				dev: req.user.id
+				dev: req.user.id,
+				name: user.name,
+				avatar: user.avatar
 			};
 
 			// check if user already enrolled in a project
@@ -171,7 +177,11 @@ router.put(
 				return res.status(400).json({ msg: 'you have been offered a role' });
 			}
 
-			profile.applied.push({ proj: req.params.proj_id, role: req.body.role });
+			profile.applied.push({
+				proj: req.params.proj_id,
+				title: project.title,
+				role: req.body.role
+			});
 			await profile.save();
 			project.applicants.push(newApplicant);
 			await project.save();
@@ -231,7 +241,10 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 			app => app.dev.toString() === req.params.user_id
 		);
 
+		const user = User.findById(req.params.user_id).select('-password');
 		project.members[memIndex].dev = req.params.user_id;
+		project.members[memIndex].name = user.name;
+		project.members[memIndex].avatar = user.avatar;
 		project.members[memIndex].vacancy = false;
 		project.applicants.splice(appIndex, 1);
 
@@ -309,6 +322,30 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 		res.status(500).send(`Server Error ${err.message}`);
 	} finally {
 		session.endSession();
+	}
+});
+
+// @route DELETE api/project/members/:user_id
+// @desc remove user from project
+// @acces Private
+router.delete('/members/:user_id', auth, async (req, res) => {
+	try {
+		const project = await Project.findOne({ owner: req.user.id });
+		const profile = await Profile.findOne({ user: req.params.user_id });
+		if (
+			project.members.filter(
+				member => member.dev.toString() === req.params.user_id.toString()
+			).length === 0
+		) {
+			return res.status(400).json({ msg: 'user not part of project' });
+		}
+		profile.currentJob = null;
+		await project.save();
+		await profile.save();
+		res.json(project);
+	} catch (err) {
+		console.error(err.message);
+		res.status(500).send(`Server Error`);
 	}
 });
 module.exports = router;
