@@ -210,11 +210,11 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 			throw new Error('no more vacancies left');
 		}
 
+		// check if applicant deleted application
 		const application = profile.applied.find(
 			application => application.proj.toString() === project.id.toString()
 		);
 
-		// check if applicant deleted application
 		if (!application) {
 			throw new Error('applicant has revoked his application');
 		}
@@ -228,8 +228,7 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 			member => member.role === applicant.role && member.vacancy === true
 		);
 		const appIndex = project.applicants.findIndex(
-			app =>
-				app.role === applicant.role && app.dev.toString() === req.params.user_id
+			app => app.dev.toString() === req.params.user_id
 		);
 
 		project.members[memIndex].dev = req.params.user_id;
@@ -250,9 +249,7 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 					);
 					rejpro.applied.splice(
 						rejpro.applied.findIndex(
-							a =>
-								a.proj.toString() === project.id.toString() &&
-								a.role === app.role
+							a => a.proj.toString() === project.id.toString()
 						),
 						1
 					);
@@ -273,9 +270,7 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 					);
 					rejpro.offers.splice(
 						rejpro.offers.findIndex(
-							a =>
-								a.proj.toString() === project.id.toString() &&
-								a.role === offer.role
+							a => a.proj.toString() === project.id.toString()
 						),
 						1
 					);

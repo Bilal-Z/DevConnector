@@ -1,5 +1,6 @@
 const express = require('express');
 const request = require('request');
+const mongoose = require('mongoose');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const config = require('config');
@@ -429,5 +430,126 @@ router.put(
 // @route PUT api/profile/offers/:proj_id/accept
 // @desc accept offer
 // @acces Private
+router.put('/offers/:proj_id/accept', auth, async (req, res) => {
+	const session = await mongoose.startSession();
+	session.startTransaction();
+	try {
+		const profile = await Profile.findOne({ user: req.user.id }).session(
+			session
+		);
+		const offer = profile.offers.find(
+			off => off.proj.toString() === req.params.proj_id.toString()
+		);
+		const project = await Project.findById(req.params.proj_id).session(session);
 
+		// check if vacancy has been filled
+		if (
+			!project.members.find(
+				member => member.role === offer.role && member.vacancy === true
+			)
+		) {
+			throw new Error('no more vacancies left');
+		}
+
+		// check if project deleted offer
+		const offeredCheck = project.offered.find(
+			offer => offer.dev.toString() === req.user.id.toString()
+		);
+
+		if (!offeredCheck) {
+			throw new Error('project has revoked his offer');
+		}
+
+		// check if user already employed
+		if (profile.currentJob) {
+			throw new Error('user already employed');
+		}
+
+		const memIndex = project.members.findIndex(
+			member => member.role === offer.role && member.vacancy === true
+		);
+		const offerIndex = project.offered.findIndex(
+			off => off.dev.toString() === req.user.id.toString()
+		);
+
+		project.members[memIndex].dev = req.user.id;
+		project.members[memIndex].vacancy = false;
+		project.offered.splice(offerIndex, 1);
+
+		// check if project has any more positions of applicant role the do the following:
+		if (
+			!project.members.some(
+				mem => mem.vacancy === true && mem.role === offer.role
+			)
+		) {
+			// (1)for each applicant with same role find profile and delete applied ref
+			project.applicants.forEach(async app => {
+				if (app.role === offer.role) {
+					const rejpro = await Profile.findOne({ user: app.dev }).session(
+						session
+					);
+					rejpro.applied.splice(
+						rejpro.applied.findIndex(
+							a => a.proj.toString() === project.id.toString()
+						),
+						1
+					);
+					rejpro.save();
+				}
+			});
+
+			// (2)filter out applicants with unavailible role
+			project.applicants = project.applicants.filter(
+				application => application.role != offer.role
+			);
+
+			// (3)for each offer with same role find profile and delete offer
+			project.offered.forEach(async offer => {
+				if (offer.role === offer.role) {
+					const rejpro = await Profile.findOne({ user: offer.dev }).session(
+						session
+					);
+					rejpro.offers.splice(
+						rejpro.offers.findIndex(
+							a => a.proj.toString() === project.id.toString()
+						),
+						1
+					);
+					rejpro.save();
+				}
+			});
+
+			// (4)filter out offer with unavailible role END
+			project.offered = project.offered.filter(
+				offer => offer.role != offer.role
+			);
+		}
+
+		// check if project is FULL
+		if (!project.members.some(mem => mem.vacancy === true)) {
+			project.status = 'FULL';
+		}
+
+		// set current job of employee, delete offers and applications, add to project list
+		profile.currentJob = project.id;
+		profile.offers.splice(0, profile.offers.length);
+		profile.applied.splice(0, profile.applied.length);
+		profile.projects.unshift({
+			proj: project.id,
+			title: project.title,
+			role: offer.role
+		});
+		await project.save();
+		// throw new Error("check transaction");
+		await profile.save();
+		await session.commitTransaction();
+		res.json(project);
+	} catch (err) {
+		await session.abortTransaction();
+		console.error(err.message);
+		res.status(500).send(`Server Error ${err.message}`);
+	} finally {
+		session.endSession();
+	}
+});
 module.exports = router;
