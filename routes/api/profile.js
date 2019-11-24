@@ -381,6 +381,17 @@ router.put(
 				return res.status(400).json({ msg: 'user does not exist' });
 			}
 
+			// check if already part of project
+			if (
+				project.members.filter(member => {
+					if (member.dev) {
+						member.dev.toString() === req.params.user_id.toString();
+					}
+				}).length > 0
+			) {
+				return res.status(400).json({ msg: 'user already part of project' });
+			}
+
 			// check if vacancy has been filled
 			if (
 				!project.members.find(
@@ -420,7 +431,7 @@ router.put(
 				role: req.body.role,
 				title: project.title
 			});
-			const user = User.findById(req.params.user_id).select('-password');
+			const user = await User.findById(req.params.user_id).select('-password');
 			project.offered.push({
 				dev: req.params.user_id,
 				role: req.body.role,
@@ -482,7 +493,7 @@ router.put('/offers/:proj_id/accept', auth, async (req, res) => {
 			off => off.dev.toString() === req.user.id.toString()
 		);
 
-		const user = User.findById(req.user.id).select('-password');
+		const user = await User.findById(req.user.id).select('-password');
 		project.members[memIndex].dev = req.user.id;
 		project.members[memIndex].name = user.name;
 		project.members[memIndex].avatar = user.avatar;
@@ -507,7 +518,7 @@ router.put('/offers/:proj_id/accept', auth, async (req, res) => {
 						),
 						1
 					);
-					rejpro.save();
+					await rejpro.save();
 				}
 			});
 
@@ -528,7 +539,7 @@ router.put('/offers/:proj_id/accept', auth, async (req, res) => {
 						),
 						1
 					);
-					rejpro.save();
+					await rejpro.save();
 				}
 			});
 

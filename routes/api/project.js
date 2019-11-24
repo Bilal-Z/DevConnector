@@ -35,41 +35,33 @@ router.post(
 			return res.status(400).json({ errors: errors.array() });
 		}
 
-		const teamRoles = req.body.team.split(',').map(role => ({
-			role: role.trim()
-		}));
-
-		const user = User.findById(req.user.id).select('-password');
-		const newProj = new Project({
-			ownerName: user.name,
-			ownerAvatar: user.avatar,
-			owner: req.user.id,
-			title: req.body.title,
-			description: req.body.description,
-			members: teamRoles
-		});
-
 		try {
-			let project = await Project.findOne({ owner: req.user.id });
-			if (project) {
-				return res.status(400).json({ msg: 'user already has project' });
-			}
-			project = await Project.findOne({
-				members: { $elemMatch: { dev: req.user.id } }
-			});
-			if (project) {
-				return res.status(400).json({ msg: 'user already part of a project' });
-			}
-
-			project = await newProj.save();
 			const profile = await Profile.findOne({ user: req.user.id });
+			if (profile.currentJob) {
+				return res.status(400).json({ msg: 'user already has a project' });
+			}
+			// requires change to array implementation
+			const teamRoles = req.body.team.split(',').map(role => ({
+				role: role.trim()
+			}));
+
+			const user = await User.findById(req.user.id).select('-password');
+			const project = new Project({
+				ownerName: user.name,
+				ownerAvatar: user.avatar,
+				owner: req.user.id,
+				title: req.body.title,
+				description: req.body.description,
+				members: teamRoles
+			});
+			await project.save();
 			profile.currentJob = project.id;
 			profile.projects.unshift({
 				proj: project.id,
 				title: project.title,
 				role: 'LEADER'
 			});
-			profile.save();
+			await profile.save();
 			res.json(project);
 		} catch (err) {
 			console.error(err.message);
@@ -77,6 +69,76 @@ router.post(
 		}
 	}
 );
+
+// @route PUT api/project/task/:user_id
+// @desc add task to project
+// @acces Private
+router.put(
+	'/task/:user_id',
+	[
+		auth,
+		[
+			check('title', 'title is required')
+				.not()
+				.isEmpty(),
+			check('description', 'description is required')
+				.not()
+				.isEmpty()
+		]
+	],
+	async (req, res) => {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) {
+			return res.status(400).json({ errors: errors.array() });
+		}
+		try {
+			const project = await Project.findOne({ owner: req.user.id });
+			if (!project) {
+				return res.status(400).json({ msg: 'user does not have project' });
+			}
+			if (
+				project.members.filter(member => {
+					if (member.dev) {
+						member.dev.toString() === req.params.user_id.toString();
+					}
+				}).length === 0
+			) {
+				return res.status(400).json({ msg: 'user not part of project' });
+			}
+			const user = await User.findById(req.params.user_id).select('-password');
+			project.tasks.push({
+				dev: req.params.user_id,
+				name: user.name,
+				avatar: user.avatar,
+				title: req.body.title,
+				description: req.body.description
+			});
+			await project.save();
+			res.json(project);
+		} catch (err) {
+			console.error(err.message);
+			res.status(500).send('Server Error');
+		}
+	}
+);
+
+// @route PUT api/project/task/:task_id
+// @desc push task forward
+// @acces Private
+router.put('/task/:task_id', auth, async (req, res) => {
+	try {
+		const profile = await Profile.findOne({ user: req.user.id });
+		if (!profile.currentJob) {
+			return res.status(400).json({ msg: 'user not part of project' });
+		}
+		const project = await Project.findById(profile.currentJob);
+		const task = project.tasks.id(req.params.task_id);
+		await project.save();
+	} catch (err) {
+		console.error(err.message);
+		res.status(500).send('Server Error');
+	}
+});
 
 // @route PUT api/project/members
 // @desc add a new member position
@@ -98,6 +160,9 @@ router.put(
 		}
 		try {
 			const project = await Project.findOne({ owner: req.user.id });
+			if (!project) {
+				return res.status(400).json({ msg: 'user does not have project' });
+			}
 			project.members.push({ role: req.body.role });
 			if (project.status === 'FULL') {
 				project.status = 'HIRING';
@@ -138,13 +203,24 @@ router.put(
 				return res.status(400).json({ msg: 'project does not exist' });
 			}
 
-			const user = User.findById(req.user.id).select('-password');
+			const user = await User.findById(req.user.id).select('-password');
 			const newApplicant = {
 				role: req.body.role,
 				dev: req.user.id,
 				name: user.name,
 				avatar: user.avatar
 			};
+
+			// check if already a member
+			if (
+				project.members.filter(member => {
+					if (member.dev) {
+						member.dev.toString() === req.params.user_id.toString();
+					}
+				}).length > 0
+			) {
+				return res.status(400).json({ msg: 'user already part of project' });
+			}
 
 			// check if user already enrolled in a project
 			if (profile.currentJob) {
@@ -241,7 +317,7 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 			app => app.dev.toString() === req.params.user_id
 		);
 
-		const user = User.findById(req.params.user_id).select('-password');
+		const user = await User.findById(req.params.user_id).select('-password');
 		project.members[memIndex].dev = req.params.user_id;
 		project.members[memIndex].name = user.name;
 		project.members[memIndex].avatar = user.avatar;
@@ -266,7 +342,7 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 						),
 						1
 					);
-					rejpro.save();
+					await rejpro.save();
 				}
 			});
 
@@ -287,7 +363,7 @@ router.put('/applications/:user_id/accept', auth, async (req, res) => {
 						),
 						1
 					);
-					rejpro.save();
+					await rejpro.save();
 				}
 			});
 
@@ -339,10 +415,49 @@ router.delete('/members/:user_id', auth, async (req, res) => {
 		) {
 			return res.status(400).json({ msg: 'user not part of project' });
 		}
+		project.members = project.members.filter(
+			member => member.dev.toString() != req.params.user_id.toString()
+		);
 		profile.currentJob = null;
-		await project.save();
+		profile.projects.filter(
+			project => project.proj.toString() != project.id.toString()
+		);
 		await profile.save();
+		await project.save();
 		res.json(project);
+	} catch (err) {
+		console.error(err.message);
+		res.status(500).send(`Server Error`);
+	}
+});
+
+// @route DELETE api/project/leave
+// @desc leave project
+// @acces Private
+router.delete('/leave', auth, async (req, res) => {
+	try {
+		const profile = await Profile.findOne({ user: req.user.id });
+		if (!profile.currentJob) {
+			return res.status(400).json({ msg: 'user not part of project' });
+		}
+		const project = await Project.findById(profile.currentJob);
+		if (
+			project.members.filter(
+				member => member.dev.toString() === req.user.id.toString()
+			).length === 0
+		) {
+			return res.status(400).json({ msg: 'user not part of project' });
+		}
+		project.members = project.members.filter(
+			member => member.dev.toString() != req.user.id.toString()
+		);
+		profile.currentJob = null;
+		profile.projects.filter(
+			project => project.proj.toString() != project.id.toString()
+		);
+		await profile.save();
+		await project.save();
+		res.json(profile);
 	} catch (err) {
 		console.error(err.message);
 		res.status(500).send(`Server Error`);
