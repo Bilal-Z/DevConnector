@@ -56,6 +56,9 @@ router.post(
       });
       await project.save();
       profile.currentJob = project.id;
+      // delete references in applicants and applied
+      profile.offers.splice(0, profile.offers.length);
+      profile.applied.splice(0, profile.applied.length);
       profile.projects.unshift({
         proj: project.id,
         title: project.title,
@@ -342,17 +345,22 @@ router.delete("/members/:user_id", auth, async (req, res) => {
     const project = await Project.findOne({ owner: req.user.id });
     const profile = await Profile.findOne({ user: req.params.user_id });
     if (
-      project.members.filter(
-        member => member.dev.toString() === req.params.user_id.toString()
-      ).length === 0
+      project.members.filter(member => {
+        if (member.dev && member.dev.toString() === req.user.id.toString()) {
+          return member.dev.toString();
+        }
+      }).length === 0
     ) {
       return res.status(400).json({ msg: "user not part of project" });
     }
     project.members = project.members.filter(
       member => member.dev.toString() != req.params.user_id.toString()
     );
+    project.tasks = project.tasks.filter(
+      task => task.dev.toString() != req.params.user_id.toString()
+    );
     profile.currentJob = null;
-    profile.projects.filter(
+    profile.projects = profile.projects.filter(
       project => project.proj.toString() != project.id.toString()
     );
     await profile.save();
@@ -375,17 +383,22 @@ router.delete("/leave", auth, async (req, res) => {
     }
     const project = await Project.findById(profile.currentJob);
     if (
-      project.members.filter(
-        member => member.dev.toString() === req.user.id.toString()
-      ).length === 0
+      project.members.filter(member => {
+        if (member.dev && member.dev.toString() === req.user.id.toString()) {
+          return member.dev.toString();
+        }
+      }).length === 0
     ) {
       return res.status(400).json({ msg: "user not part of project" });
     }
     project.members = project.members.filter(
       member => member.dev.toString() != req.user.id.toString()
     );
+    project.tasks = project.tasks.filter(
+      task => task.dev.toString() != req.user.id.toString()
+    );
     profile.currentJob = null;
-    profile.projects.filter(
+    profile.projects = profile.projects.filter(
       project => project.proj.toString() != project.id.toString()
     );
     await profile.save();
@@ -480,6 +493,83 @@ router.put("/task/:task_id", auth, async (req, res) => {
     } else if (project.tasks[taskIndex].status === "DOING") {
       project.tasks[taskIndex].status = "DONE";
     }
+    await project.save();
+    res.json(project);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// @route PUT api/project/task/:task_id/return
+// @desc send task back
+// @acces Private
+router.put(
+  "/task/:task_id/return",
+  [
+    auth,
+    [
+      check("note", "note is required")
+        .not()
+        .isEmpty()
+    ]
+  ],
+  async (req, res) => {
+    try {
+      const profile = await Profile.findOne({ user: req.user.id });
+      const project = await Project.findById(profile.currentJob);
+      if (
+        !profile.currentJob ||
+        profile.currentJob.toString() != project.id.toString() ||
+        req.user.id.toString() != project.owner.toString()
+      ) {
+        return res.status(400).json({ msg: "user not project owner" });
+      }
+
+      const taskIndex = project.tasks.findIndex(
+        task => task === project.tasks.id(req.params.task_id)
+      );
+
+      if (project.tasks[taskIndex].status != "DONE") {
+        return res.status(400).json({ msg: "task not marked done" });
+      }
+
+      project.tasks[taskIndex].status = "DOING";
+      project.tasks[taskIndex].note = req.body.note;
+      await project.save();
+      res.json(project);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send("Server Error");
+    }
+  }
+);
+
+// @route PUT api/project/task/:task_id/close
+// @desc close task mark as complete
+// @acces Private
+router.put("/task/:task_id/close", auth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ user: req.user.id });
+    const project = await Project.findById(profile.currentJob);
+    if (
+      !profile.currentJob ||
+      profile.currentJob.toString() != project.id.toString() ||
+      req.user.id.toString() != project.owner.toString()
+    ) {
+      return res.status(400).json({ msg: "user not project owner" });
+    }
+
+    const taskIndex = project.tasks.findIndex(
+      task => task === project.tasks.id(req.params.task_id)
+    );
+
+    if (project.tasks[taskIndex].status != "DONE") {
+      return res.status(400).json({ msg: "task not marked done" });
+    }
+
+    project.tasks[taskIndex].status = "COMPLETE";
+
     await project.save();
     res.json(project);
   } catch (err) {
