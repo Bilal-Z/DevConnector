@@ -19,10 +19,6 @@ const ProfileSchema = new mongoose.Schema({
 				type: mongoose.Schema.Types.ObjectId,
 				ref: 'project'
 			},
-			title: {
-				type: String,
-				required: true
-			},
 			role: {
 				type: String,
 				required: true
@@ -36,10 +32,6 @@ const ProfileSchema = new mongoose.Schema({
 			proj: {
 				type: mongoose.Schema.Types.ObjectId,
 				ref: 'project'
-			},
-			title: {
-				type: String,
-				required: true
 			},
 			role: {
 				type: String,
@@ -70,10 +62,6 @@ const ProfileSchema = new mongoose.Schema({
 			proj: {
 				type: mongoose.Schema.Types.ObjectId,
 				ref: 'project'
-			},
-			title: {
-				type: String,
-				required: true
 			},
 			role: {
 				type: String,
