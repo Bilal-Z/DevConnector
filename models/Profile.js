@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const ProfileSchema = new mongoose.Schema({
 	user: {
@@ -42,7 +43,8 @@ const ProfileSchema = new mongoose.Schema({
 	// currently enrolled job
 	currentJob: {
 		type: mongoose.Schema.Types.ObjectId,
-		ref: 'project'
+		ref: 'project',
+		default: null
 	},
 	// list of skills
 	skills: {
@@ -151,4 +153,5 @@ const ProfileSchema = new mongoose.Schema({
 	}
 });
 
+ProfileSchema.plugin(mongoosePaginate);
 module.exports = Profile = mongoose.model('profile', ProfileSchema);
