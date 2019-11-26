@@ -46,7 +46,7 @@ router.get('/user', auth, async (req, res) => {
 					path: 'user',
 					select: 'name avatar'
 				},
-				limit: 1,
+				limit: 15,
 				page: page
 			}
 		);

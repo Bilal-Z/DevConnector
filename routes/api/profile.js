@@ -112,13 +112,13 @@ router.post(
 	}
 );
 
-// @route GET api/profile
-// @desc get all profiles
-// @acces Public
-router.get('/', async (req, res) => {
+// @route GET api/profile/skills
+// @desc get logged in users skills
+// @acces Private
+router.get('/skills', auth, async (req, res) => {
 	try {
-		const profiles = await Profile.find().populate('user', ['name', 'avatar']);
-		res.json(profiles);
+		const profile = await Profile.findOne({ user: req.user.id });
+		res.json(profile.skills);
 	} catch (err) {
 		console.error(err.message);
 		res.status(500).send('server error');
