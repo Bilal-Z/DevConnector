@@ -343,6 +343,76 @@ router.put("/applications/:user_id/accept", auth, async (req, res) => {
   }
 });
 
+// @route DELETE api/project/applicants/:user_id/reject
+// @desc reject applicant
+// @acces Private
+router.delete("/applicants/:user_id/reject", auth, async (req, res) => {
+  try {
+    const ownerProfile = await Profile.findOne({ user: req.user.id });
+    const project = await Project.findById(ownerProfile.currentJob);
+    if (!project || project.owner != req.user.id) {
+      return res.status(400).json({ msg: "you are not a project owner" });
+    }
+    applicant = project.applicants.find(
+      applicant => applicant.dev.toString() === req.params.user_id.toString()
+    );
+    if (!applicant) {
+      return res.status(400).json({ msg: "applicant does not exist" });
+    }
+
+    project.applicants = project.applicants.filter(
+      app => app.dev.toString() != req.params.user_id.toString()
+    );
+    const profile = await Profile.findOne({ user: applicant.dev });
+    profile.applied = profile.applied.filter(
+      app => app.proj.toString() != project.id.toString()
+    );
+
+    await profile.save();
+    await project.save();
+    res.json(profile);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// @route DELETE api/profile/offered/:user_id/cancel
+// @desc cancel offer
+// @acces Private
+
+// @route DELETE api/project
+// @desc close project
+// @acces Private
+router.delete("/", auth, async (req, res) => {
+  try {
+    const ownerProfile = await Profile.findOne({ user: req.user.id });
+    const project = await Project.findById(ownerProfile.currentJob);
+    if (!project || project.owner != req.user.id) {
+      return res.status(400).json({ msg: "you are not a project owner" });
+    }
+
+    project.members = project.members.filter(member => member.vacancy != true);
+    project.members.forEach(async member => {
+      const profile = await Profile.findOne({ user: member.dev });
+      profile.currentJob = null;
+      await profile.save();
+    });
+
+    project.tasks.splice(0, project.tasks.length);
+    project.posts.splice(0, project.posts.length);
+
+    ownerProfile.currentJob = null;
+    await ownerProfile.save();
+    project.status = "COMPLETE";
+    await project.save();
+    res.json(project);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send(`Server Error`);
+  }
+});
+
 // @route DELETE api/project/members/:user_id
 // @desc remove user from project
 // @acces Private
@@ -350,13 +420,16 @@ router.delete("/members/:user_id", auth, async (req, res) => {
   try {
     const ownerProfile = await Profile.findOne({ user: req.user.id });
     const project = await Project.findById(ownerProfile.currentJob);
-    if (!project) {
+    if (!project || project.owner != req.user.id) {
       return res.status(400).json({ msg: "you are not a project owner" });
     }
     const profile = await Profile.findOne({ user: req.params.user_id });
     if (
       project.members.filter(member => {
-        if (member.dev && member.dev.toString() === req.user.id.toString()) {
+        if (
+          member.dev &&
+          member.dev.toString() === req.params.user_id.toString()
+        ) {
           return member.dev.toString();
         }
       }).length === 0
@@ -548,7 +621,7 @@ router.put(
     try {
       const ownerProfile = await Profile.findOne({ user: req.user.id });
       const project = await Project.findById(ownerProfile.currentJob);
-      if (!project) {
+      if (!project || project.owner != req.user.id) {
         return res.status(400).json({ msg: "user does not have project" });
       }
       if (
