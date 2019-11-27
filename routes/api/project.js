@@ -126,16 +126,7 @@ router.put(
 // @desc apply to project
 // @acces Private
 router.put(
-	'/:proj_id/apply',
-	[
-		auth,
-		[
-			check('role', 'role is required')
-				.not()
-				.isEmpty()
-		]
-	],
-	async (req, res) => {
+	'/:proj_id/apply',auth, async (req, res) => {
 		const errors = validationResult(req);
 		if (!errors.isEmpty()) {
 			return res.status(400).json({ errors: errors.array() });
@@ -153,14 +144,14 @@ router.put(
 			if (
 				!project.members.find(
 					position =>
-						position.vacancy === true && position.role === req.body.role
+						position.vacancy === true && position.role === req.query.role
 				)
 			) {
 				return res.status(400).json({ msg: 'role does not exist in project' });
 			}
 
 			const newApplicant = {
-				role: req.body.role,
+				role: req.query.role,
 				dev: req.user.id
 			};
 
@@ -184,7 +175,7 @@ router.put(
 			// check vacancy
 			if (
 				!project.members.some(
-					mem => mem.vacancy === true && mem.role === req.body.role
+					mem => mem.vacancy === true && mem.role === req.query.role
 				)
 			) {
 				return res.status(400).json({ msg: 'no vacancy for role' });
@@ -209,7 +200,7 @@ router.put(
 
 			profile.applied.push({
 				proj: req.params.proj_id,
-				role: req.body.role
+				role: req.query.role
 			});
 			await profile.save();
 			project.applicants.push(newApplicant);
@@ -487,7 +478,7 @@ router.delete('/members/:user_id', auth, async (req, res) => {
 		);
 		profile.currentJob = null;
 		profile.projects = profile.projects.filter(
-			project => project.proj.toString() != project.id.toString()
+			p => p.proj.toString() != project.id.toString()
 		);
 		await profile.save();
 		await project.save();
@@ -525,7 +516,7 @@ router.delete('/leave', auth, async (req, res) => {
 		);
 		profile.currentJob = null;
 		profile.projects = profile.projects.filter(
-			project => project.proj.toString() != project.id.toString()
+			p => p.proj.toString() != project.id.toString()
 		);
 		await profile.save();
 		await project.save();
