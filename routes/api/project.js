@@ -125,93 +125,94 @@ router.put(
 // @route PUT api/project/:proj_id/apply
 // @desc apply to project
 // @acces Private
-router.put(
-	'/:proj_id/apply',auth, async (req, res) => {
-		const errors = validationResult(req);
-		if (!errors.isEmpty()) {
-			return res.status(400).json({ errors: errors.array() });
+router.put('/:proj_id/apply', auth, async (req, res) => {
+	try {
+		const project = await Project.findById(req.params.proj_id);
+		const profile = await Profile.findOne({ user: req.user.id });
+
+		if (!project) {
+			return res.status(400).json({ msg: 'project does not exist' });
 		}
 
-		try {
-			const project = await Project.findById(req.params.proj_id);
-			const profile = await Profile.findOne({ user: req.user.id });
-
-			if (!project) {
-				return res.status(400).json({ msg: 'project does not exist' });
-			}
-
-			// check if role exists in project
-			if (
-				!project.members.find(
-					position =>
-						position.vacancy === true && position.role === req.query.role
-				)
-			) {
-				return res.status(400).json({ msg: 'role does not exist in project' });
-			}
-
-			const newApplicant = {
-				role: req.query.role,
-				dev: req.user.id
-			};
-
-			// check if already a member
-			if (
-				project.members.filter(member => {
-					if (member.dev) {
-						if (member.dev.toString() === req.params.user_id.toString())
-							return member.dev.toString();
-					}
-				}).length > 0
-			) {
-				return res.status(400).json({ msg: 'user already part of project' });
-			}
-
-			// check if user already enrolled in a project
-			if (profile.currentJob) {
-				return res.status(400).json({ msg: 'user already has project' });
-			}
-
-			// check vacancy
-			if (
-				!project.members.some(
-					mem => mem.vacancy === true && mem.role === req.query.role
-				)
-			) {
-				return res.status(400).json({ msg: 'no vacancy for role' });
-			}
-
-			// check if already applied
-			if (
-				project.applicants.filter(
-					application => application.dev.toString() === req.user.id
-				).length > 0
-			) {
-				return res.status(400).json({ msg: 'you have already applied' });
-			}
-
-			// check if already offered
-			if (
-				project.offered.filter(offer => offer.dev.toString() === req.user.id)
-					.length > 0
-			) {
-				return res.status(400).json({ msg: 'you have been offered a role' });
-			}
-
-			profile.applied.push({
-				proj: req.params.proj_id,
-				role: req.query.role
-			});
-			await profile.save();
-			project.applicants.push(newApplicant);
-			await project.save();
-			res.json(project);
-		} catch (err) {
-			console.error(err.message);
-			res.status(500).send('Server Error');
+		// check if role exists
+		if (!req.query.role) {
+			return res.status(400).json({ msg: 'no role defined' });
 		}
+		// check if role exists in profile
+		if (!profile.skills.include(req.query.role)) {
+			return res.status(400).json({ msg: 'user does not have this skill' });
+		}
+		// check if role exists in project
+		if (
+			!project.members.find(
+				position =>
+					position.vacancy === true && position.role === req.query.role
+			)
+		) {
+			return res.status(400).json({ msg: 'role does not exist in project' });
+		}
+
+		const newApplicant = {
+			role: req.query.role,
+			dev: req.user.id
+		};
+
+		// check if already a member
+		if (
+			project.members.filter(member => {
+				if (member.dev) {
+					if (member.dev.toString() === req.params.user_id.toString())
+						return member.dev.toString();
+				}
+			}).length > 0
+		) {
+			return res.status(400).json({ msg: 'user already part of project' });
+		}
+
+		// check if user already enrolled in a project
+		if (profile.currentJob) {
+			return res.status(400).json({ msg: 'user already has project' });
+		}
+
+		// check vacancy
+		if (
+			!project.members.some(
+				mem => mem.vacancy === true && mem.role === req.query.role
+			)
+		) {
+			return res.status(400).json({ msg: 'no vacancy for role' });
+		}
+
+		// check if already applied
+		if (
+			project.applicants.filter(
+				application => application.dev.toString() === req.user.id
+			).length > 0
+		) {
+			return res.status(400).json({ msg: 'you have already applied' });
+		}
+
+		// check if already offered
+		if (
+			project.offered.filter(offer => offer.dev.toString() === req.user.id)
+				.length > 0
+		) {
+			return res.status(400).json({ msg: 'you have been offered a role' });
+		}
+
+		profile.applied.push({
+			proj: req.params.proj_id,
+			role: req.query.role
+		});
+		await profile.save();
+		project.applicants.push(newApplicant);
+		await project.save();
+		res.json(project);
+	} catch (err) {
+		console.error(err.message);
+		res.status(500).send('Server Error');
 	}
-);
+});
 
 // @route PUT api/project/applications/:user_id/accept
 // @desc accept application
@@ -470,16 +471,39 @@ router.delete('/members/:user_id', auth, async (req, res) => {
 		) {
 			return res.status(400).json({ msg: 'user not part of project' });
 		}
-		project.members = project.members.filter(
-			member => member.dev.toString() != req.params.user_id.toString()
-		);
-		project.tasks = project.tasks.filter(
-			task => task.dev.toString() != req.params.user_id.toString()
-		);
+
+		// if member did not complete any task
+		if (
+			project.tasks.filter(
+				task =>
+					task.dev.toString() === req.params.user_id.toString() &&
+					task.status === 'COMPLETE'
+			).length === 0
+		) {
+			// remove from member list
+			project.members = project.members.filter(
+				member => member.dev.toString() != req.params.user_id.toString()
+			);
+			// remove all assigned tasks
+			project.tasks = project.tasks.filter(
+				task => task.dev.toString() != req.params.user_id.toString()
+			);
+
+			// remove project from profile
+			profile.projects = profile.projects.filter(
+				p => p.proj.toString() != project.id.toString()
+			);
+		} else {
+			// remove all assigned tasks keep completed
+			project.tasks = project.tasks.filter(
+				task =>
+					task.dev.toString() != req.params.user_id.toString() &&
+					task.status != 'COMPLETE'
+			);
+		}
+
 		profile.currentJob = null;
-		profile.projects = profile.projects.filter(
-			p => p.proj.toString() != project.id.toString()
-		);
+
 		await profile.save();
 		await project.save();
 		res.json(project);
@@ -508,16 +532,39 @@ router.delete('/leave', auth, async (req, res) => {
 		) {
 			return res.status(400).json({ msg: 'user not part of project' });
 		}
-		project.members = project.members.filter(
-			member => member.dev.toString() != req.user.id.toString()
-		);
-		project.tasks = project.tasks.filter(
-			task => task.dev.toString() != req.user.id.toString()
-		);
+
+		// if member did not complete any task
+		if (
+			project.tasks.filter(
+				task =>
+					task.dev.toString() === req.user.id.toString() &&
+					task.status === 'COMPLETE'
+			).length === 0
+		) {
+			// remove from member list
+			project.members = project.members.filter(
+				member => member.dev.toString() != req.user.id.toString()
+			);
+			// remove all assigned tasks
+			project.tasks = project.tasks.filter(
+				task => task.dev.toString() != req.user.id.toString()
+			);
+
+			// remove project from profile
+			profile.projects = profile.projects.filter(
+				p => p.proj.toString() != project.id.toString()
+			);
+		} else {
+			// remove all assigned tasks keep completed
+			project.tasks = project.tasks.filter(
+				task =>
+					task.dev.toString() != req.user.id.toString() &&
+					task.status != 'COMPLETE'
+			);
+		}
+
 		profile.currentJob = null;
-		profile.projects = profile.projects.filter(
-			p => p.proj.toString() != project.id.toString()
-		);
+
 		await profile.save();
 		await project.save();
 		res.json(profile);
