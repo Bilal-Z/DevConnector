@@ -127,8 +127,8 @@ router.get('/skills', auth, async (req, res) => {
 
 // @route GET api/profile/user/:user_id
 // @desc get profile by user id
-// @acces Public
-router.get('/user/:user_id', async (req, res) => {
+// @acces Private
+router.get('/user/:user_id', auth, async (req, res) => {
 	try {
 		const profile = await Profile.findOne({
 			user: req.params.user_id
