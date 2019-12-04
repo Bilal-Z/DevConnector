@@ -139,7 +139,7 @@ router.put('/:proj_id/apply', auth, async (req, res) => {
 			return res.status(400).json({ msg: 'no role defined' });
 		}
 		// check if role exists in profile
-		if (!profile.skills.include(req.query.role)) {
+		if (!profile.skills.includes(req.query.role)) {
 			return res.status(400).json({ msg: 'user does not have this skill' });
 		}
 		// check if role exists in project
