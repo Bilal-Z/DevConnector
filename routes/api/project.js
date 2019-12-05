@@ -161,7 +161,7 @@ router.put('/:proj_id/apply', auth, async (req, res) => {
 		if (
 			project.members.filter(member => {
 				if (member.dev) {
-					if (member.dev.toString() === req.params.user_id.toString())
+					if (member.dev.toString() === req.user.id.toString())
 						return member.dev.toString();
 				}
 			}).length > 0
